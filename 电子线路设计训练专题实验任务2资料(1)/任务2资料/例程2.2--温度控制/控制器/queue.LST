@@ -1,0 +1,55 @@
+C51 COMPILER V9.52.0.0   QUEUE                                                             04/26/2024 19:45:12 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE QUEUE
+OBJECT MODULE PLACED IN queue.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE queue.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /************************************************
+   2          designed by wjj
+   3          wjj12138@stu.xjtu.edu.cn
+   4          ************************************************/
+   5          #include "queue.h"
+   6          #include "string.h"
+   7          typedef   unsigned   char        uchar; 
+   8          void InintQueue(Queue *Q)
+   9          {
+  10   1        memset(Q->base,0,129*sizeof(uchar));
+  11   1          Q->front = Q->rear = 0;
+  12   1        Q->number=0;
+  13   1      }
+  14          void EnQueue(Queue *Q, unsigned char rows)
+  15          {
+  16   1          if ((Q->rear + 1) % 129 == Q->front)
+  17   1          {
+  18   2              Q->front = (Q->front + 1) % 129;
+  19   2          Q->number-=1;
+  20   2          }
+  21   1          Q->base[Q->rear] = rows;
+  22   1          Q->rear = (Q->rear + 1) % 129;
+  23   1        Q->number+=1;
+  24   1      }
+  25          
+  26          void ClearQueue(Queue *Q)
+  27          {
+  28   1          Q->front = Q->rear = 0;
+  29   1        Q->number=0;
+  30   1      }
+  31          
+  32          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    245    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----       7
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

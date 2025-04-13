@@ -1,0 +1,120 @@
+C51 COMPILER V9.52.0.0   DIGITRON                                                          02/17/2025 18:44:43 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE DIGITRON
+OBJECT MODULE PLACED IN digitron.OBJ
+COMPILER INVOKED BY: D:\keilv4_51\C51\BIN\C51.EXE digitron.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "digitron.h"                 
+   2          #define uchar unsigned char
+   3          #define uint unsigned int
+   4          
+   5          uchar code tab[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90};//0，1，2，3，4，5，6,7，8，9
+   6          
+   7          void SYSCLK_Init (void)
+   8          {
+   9   1         int i;                      // ?????
+  10   1         OSCXCN = 0x67;              // ????22.1184MHz??
+  11   1         for (i=0; i<256; i++);      // ??1ms
+  12   1         while (!(OSCXCN & 0x80));   // ?????????
+  13   1         OSCICN = 0x88;              // ???????
+  14   1      }
+  15          
+  16          void Delay_us(unsigned int times)
+  17          {
+  18   1          unsigned int i;
+  19   1      
+  20   1          for (i=0; i<times; i++)
+  21   1          {
+  22   2              _nop_();
+  23   2              _nop_();
+  24   2              _nop_();
+  25   2          _nop_();
+  26   2          }
+  27   1      }
+  28          
+  29          void main (void) 
+  30          {
+  31   1      
+  32   1        WDTCN = 0xde;
+  33   1        WDTCN = 0xad;   //????????
+  34   1        SYSCLK_Init ();
+  35   1        while(1)
+  36   1        {
+  37   2          
+  38   2              /*上一右一显示6*/
+  39   2              P5 = 0XF7;
+  40   2              P6 = 0XFF;
+  41   2              P7 = 0x82;  
+  42   2              Delay_us(500);
+  43   2              /*上一右二显示0.*/  
+  44   2              P5 = 0XFB;
+  45   2              P6 = 0XFF;
+  46   2              P7 = 0xc0&~0x80;            
+  47   2              Delay_us(500);
+  48   2              /*上一右三显示0*/
+  49   2              P5 = 0XFD;
+  50   2              P6 = 0XFF;
+  51   2              P7 = 0xC0;
+  52   2              Delay_us(500);
+  53   2              /*上一右四显示1*/
+  54   2              P5 = 0XFE;
+  55   2              P6 = 0XFF;
+C51 COMPILER V9.52.0.0   DIGITRON                                                          02/17/2025 18:44:43 PAGE 2   
+
+  56   2              P7 = 0xF9;
+  57   2              Delay_us(500);
+  58   2              /*中右一显示 1*/
+  59   2              P5 = 0X7F;
+  60   2              P6 = 0XFF;
+  61   2              P7 = 0xC0;
+  62   2              Delay_us(500);
+  63   2              /*中右二显示2*/
+  64   2              P5 = 0XBF;
+  65   2              P6 = 0XFF;
+  66   2              P7 = 0xA4;
+  67   2              Delay_us(500);
+  68   2              /*中右3显示5*/
+  69   2              P5 = 0XDF;
+  70   2              P6 = 0XFF;
+  71   2              P7 = 0x92;
+  72   2              Delay_us(500);
+  73   2              /*下左一显示1*/
+  74   2              P5 = 0XFF;
+  75   2              P6 = 0XFE;
+  76   2              P7 = 0xF9;
+  77   2              Delay_us(500);
+  78   2              /*下左二显示3*/       
+  79   2              P5 = 0XFF;
+  80   2              P6 = 0XFD;
+  81   2              P7 = 0xB0;
+  82   2              Delay_us(500);
+  83   2              /*下左三显示1*/
+  84   2              P5 = 0XFF;
+  85   2              P6 = 0XFB;
+  86   2              P7 = 0xF9;
+  87   2              Delay_us(500);
+  88   2              /*下左四显示4*/
+  89   2              P5 = 0XFF;
+  90   2              P6 = 0XF7;
+  91   2              P7 = 0x99;
+  92   2              Delay_us(500);
+  93   2          }
+  94   1        }
+  95          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    192    ----
+   CONSTANT SIZE    =     10    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

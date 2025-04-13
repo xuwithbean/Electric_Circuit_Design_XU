@@ -1,0 +1,135 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              03/10/2025 20:07:47 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.obj
+COMPILER INVOKED BY: D:\keilv4_51\C51\BIN\C51.EXE source\main.c LARGE RTX51 BROWSE DEBUG OBJECTEXTEND PRINT(.\main.lst) 
+                    -TABS(2) OBJECT(main.obj)
+
+line level    source
+
+   1          // 字符编码使用 UTF-8
+   2          #include "ADC.h"
+   3          #include "DAC.h"
+   4          #include "Delay.h"
+   5          #include "SYS_Init.h"
+   6          #include "Timer.h"
+   7          #include "lcd.h"
+   8          // #include "Handle_Menu.h"
+   9          #include "c8051f020.h"
+  10          #include "c8051f020.h"
+  11          uchar code str0[]="xjtu";
+  12          uchar code str1[]="dianxin";
+  13          uchar code str2[]="zidonghua";
+  14          uchar code str3[]="****";
+  15          // Timers value
+  16          unsigned int  timer0_value;
+  17          unsigned int  timer1_value;
+  18          unsigned int  timer2_value;
+  19          unsigned int  timer3_value;
+  20          unsigned int  timer4_value;
+  21          
+  22          // ADC & DAC variables
+  23          unsigned char channel;   // ADC 通道转换
+  24          unsigned int  vref;      // VREF
+  25          unsigned int  vtarget;   // VTARGET
+  26          unsigned int  vadc;      // ADC 取值
+  27          unsigned int  vadc_dec;  // ADC 取值
+  28          unsigned int  vdac;      // DAC 输出
+  29          unsigned int  vdac_dec;  // DAC 输出
+  30          
+  31          void Timer1_Init_Main(void) {
+  32   1          Enable_Timer1;       // 设定 IE 标志位 1，允许 Timer1 溢出中断请求
+  33   1          Timer1_Set_Method1;  // 设置定时器 1 为方式 1 定时器功能
+  34   1      }
+  35          
+  36          void Timer1_ISR(void) interrupt 3 {
+  37   1          timer1_value++;
+  38   1      
+  39   1          TH1 = 0x00; // Reinit Timer0 High register
+  40   1          TL1 = 0x00;
+  41   1      }
+  42          
+  43          void Device_Init(void) {
+  44   1          SYS_Init();  // SYS 初始化
+  45   1      
+  46   1          Timer1_Init_Main();
+  47   1          Timer3_Init_ADC0(SYSCLK / SAMPLERATE);  // TIMER3 初始化 
+  48   1      
+  49   1          INT_Init();  // INT 中断初始化
+  50   1      
+  51   1          ADC0_Init();     // ADC0 初始化
+  52   1          ADC0_Enable(1);  // 使能 ADC0
+  53   1          DAC0_Init();     // DAC 初始化
+  54   1          LcdInit();
+C51 COMPILER V9.52.0.0   MAIN                                                              03/10/2025 20:07:47 PAGE 2   
+
+  55   1          Timer1_Start;  // 设定 TCON 中断标志位 6，定时器 1 开启
+  56   1      
+  57   1          timer1_value = 0;
+  58   1          timer3_value = 0;
+  59   1      
+  60   1          channel  = 1;
+  61   1          vref     = 5244;
+  62   1          vtarget  = 2800;
+  63   1          vadc     = 0x0000;
+  64   1          vadc_dec = 0;
+  65   1          vdac     = 0x0000;
+  66   1          vdac_dec = 0;
+  67   1      }
+  68          
+  69          void Do(void) {
+  70   1          if ((timer1_value & 0x0007) == 0x0001) {     
+  71   2              if (channel == 1) {
+  72   3                  // 从 ADC0 AIN1 取得 10 位 16 进制数 vadc
+  73   3                  vadc = ADC_ValueReturn(channel);
+  74   3                  // 将 vadc 转化为 10 进制数进行计算
+  75   3                  vadc_dec = (unsigned long int)vadc * (unsigned long int)vref / 4096;
+  76   3      
+  77   3                  // 数据处理
+  78   3                  if (vadc_dec < vtarget) {
+  79   4                      vdac_dec = vdac_dec + 2;
+  80   4                  } else if (vadc_dec > vtarget + 20) {
+  81   4                      vdac_dec = vdac_dec - 2;
+  82   4                  } else {
+  83   4                      vdac_dec = vdac_dec;
+  84   4                  }
+  85   3      
+  86   3                  // 将 10 进制数 vdac_dec 转化为 16 进制数
+  87   3                  vdac = (unsigned long int)vdac_dec * 4096 / (unsigned long int)vref;
+  88   3                  // 从 ADC0 输出 10 位 16 进制数 vdac
+  89   3                  DAC0_Output(vdac);
+  90   3              }
+  91   2          }
+  92   1      }
+  93          
+  94          main(void) {
+  95   1          Device_Init();
+  96   1              Device_Init();
+  97   1        WriteStr(0, 0, str0);
+  98   1        WriteStr(1, 0, str1);
+  99   1        WriteStr(2, 0, str2);
+ 100   1        WriteStr(3, 0, str3);
+ 101   1          while (1) {
+ 102   2          Do();
+ 103   2          }
+ 104   1          WDTCN = 0xde;
+ 105   1          WDTCN = 0xad;//¹Ø±Õ¿´ÃÅ¹·
+ 106   1      }
+*** WARNING C294 IN LINE 104 OF source\main.c: unreachable code
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    404    ----
+   CONSTANT SIZE    =     28    ----
+   XDATA SIZE       =     23    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+C51 COMPILER V9.52.0.0   MAIN                                                              03/10/2025 20:07:47 PAGE 3   
+
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  1 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,184 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              02/17/2025 21:01:15 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\keilv4_51\C51\BIN\C51.EXE source\source\main.c BROWSE INCDIR(.\source\head file) DEBUG OBJECTEXT
+                    -END PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1           #include <stdio.h>
+   2          
+   3          #include "c8051f020.h"
+   4          #include "lcd.h"
+   5          //#include "led.h"
+   6          #include "1.h"
+   7          #include "2.h"
+   8          #include "3.h"
+   9          #define SYSCLK    11059200
+  10          
+  11          #define TIMER_PRESCALER            12  // Based on Timer CKCON settings
+  12          
+  13          #define LED_TOGGLE_RATE            100 // LED toggle rate in milliseconds    1ms
+  14                                                 // if LED_TOGGLE_RATE = 1, the LED will
+  15                                                 // be on for 1 millisecond and off for
+  16                                                 // 1 millisecond
+  17          
+  18          // There are SYSCLK/TIMER_PRESCALER timer ticks per second, so
+  19          // SYSCLK/TIMER_PRESCALER/1000 timer ticks per millisecond.
+  20          #define TIMER_TICKS_PER_MS  SYSCLK/TIMER_PRESCALER/1000
+  21          
+  22          // Note: LED_TOGGLE_RATE*TIMER_TICKS_PER_MS should not exceed 65535 (0xFFFF)
+  23          // for the 16-bit timer
+  24          
+  25          #define AUX1     TIMER_TICKS_PER_MS*LED_TOGGLE_RATE
+  26          #define AUX2     -AUX1
+  27          #define AUX3     AUX2&0x00FF
+  28          #define AUX4     ((AUX2&0xFF00)>>8)
+  29          
+  30          #define TIMER0_RELOAD_HIGH       AUX4  // Reload value for Timer0 high byte
+  31          #define TIMER0_RELOAD_LOW        AUX3  // Reload value for Timer0 low byte
+  32          
+  33          
+  34          sbit INT1 = P0^3; //旧板子是接在0.2端口
+  35          
+  36          void Delay_us(unsigned int times)
+  37          {
+  38   1        unsigned int i,j;
+  39   1        
+  40   1        for (i = 0; i< times; i++)
+  41   1        {
+  42   2          for (j = 0; j < 11; j++)
+  43   2          {
+  44   3            _nop_();
+  45   3          }
+  46   2        }
+  47   1      }
+  48          
+  49          void Port_IO_Init()
+  50          {
+  51   1        //set P4[1] to push_pull model
+  52   1          P74OUT |= 0x01;
+  53   1      
+  54   1          //close the alam P4.1
+C51 COMPILER V9.52.0.0   MAIN                                                              02/17/2025 21:01:15 PAGE 2   
+
+  55   1          P4 &= 0xfd;
+  56   1        
+  57   1        //uart1,int1
+  58   1        XBR1 |= 0x14;//旧板子是0x10
+  59   1        XBR2 |= 0x44;
+  60   1      }
+  61          
+  62          void Oscillator_Init()
+  63          {
+  64   1          int i = 0;
+  65   1          OSCXCN    = 0x67;
+  66   1          for (i = 0; i < 3000; i++);  // Wait 1ms for initialization
+  67   1          while ((OSCXCN & 0x80) == 0);
+  68   1          OSCICN    = 0x08;
+  69   1      }
+  70          
+  71          void Timer0_Init(void)
+  72          {
+  73   1        TH0 = TIMER0_RELOAD_HIGH;           // Reinit Timer0 High register
+  74   1        TL0 = TIMER0_RELOAD_LOW;
+  75   1        ET0 = 1;                            // Timer0 interrupt enabled
+  76   1        TMOD = 0x01;                        // 16-bit Mode Timer0
+  77   1        //TCON |= 0x10;                        // Timer0 ON
+  78   1      }
+  79          
+  80          void Interrupt_Init()
+  81          {
+  82   1        //INT1
+  83   1        //low level triggle
+  84   1        IT1 = 0;
+  85   1        //enable INT1
+  86   1        EX1 = 1;
+  87   1        //enable all interrupt
+  88   1        EA = 1;
+  89   1      }
+  90          
+  91          void Init_Device(void)
+  92          {
+  93   1          //disable watchdog
+  94   1          EA = 0;
+  95   1          WDTCN = 0xde;
+  96   1          WDTCN = 0xad;
+  97   1          EA = 1;
+  98   1        
+  99   1          Oscillator_Init();
+ 100   1          Port_IO_Init();
+ 101   1        Timer0_Init();
+ 102   1        
+ 103   1        Interrupt_Init();
+ 104   1        
+ 105   1          LcdInit();
+ 106   1      //  LedInit();
+ 107   1      }
+ 108          
+ 109          
+ 110          //-----------------------------------------------------------------------------
+ 111          // 主程序
+ 112          //-----------------------------------------------------------------------------
+ 113          
+ 114          void main()
+ 115          { 
+ 116   1        Init_Device();
+C51 COMPILER V9.52.0.0   MAIN                                                              02/17/2025 21:01:15 PAGE 3   
+
+ 117   1        
+ 118   1        INT1 = 1;
+ 119   1        
+ 120   1        ImageShow1(xjtu_image1);
+ 121   1      
+ 122   1          while(1)
+ 123   1          {
+ 124   2            P5 = 0xFB;Delay_us(5);
+ 125   2            P5 = 0xFD;Delay_us(5);
+ 126   2            P5 = 0xFE;Delay_us(5);
+ 127   2            
+ 128   2          }
+ 129   1      }
+ 130          
+ 131          void INT1_ISR(void) interrupt 2
+ 132          {
+ 133   1        Delay_ms(1);
+ 134   1        switch(P5)
+ 135   1        {
+ 136   2          //sub
+ 137   2            case 0xfb:  //  左键
+ 138   2            ImageShow1(xjtu_image1);
+ 139   2            break;
+ 140   2            
+ 141   2            case 0xfd:   //  中间键
+ 142   2            ImageShow1(xjtu_image2);
+ 143   2            break;  
+ 144   2          
+ 145   2            case 0xfe:    //  右键
+ 146   2      //       LcdInit(); 
+ 147   2            ImageShow2(xjtu_image3);
+ 148   2            break;    
+ 149   2        }
+ 150   1      }
+ 151          
+ 152          
+ 153          
+ 154          
+ 155          
+ 156          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    259    ----
+   CONSTANT SIZE    =   2560    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

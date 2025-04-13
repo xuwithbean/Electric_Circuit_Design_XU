@@ -1,0 +1,101 @@
+C51 COMPILER V9.52.0.0   DIGHT                                                             04/26/2024 19:45:12 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE DIGHT
+OBJECT MODULE PLACED IN dight.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE dight.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "sysclk.h"
+   2          #include "dight.h"
+   3          
+   4          uchar code tab[]={0xc0,0xf9,0xa4,0xb0,0x99,0x92,0x82,0xf8,0x80,0x90,0x7f};//0，1，2，3，4，5，6,7，8，9，.
+   5          
+   6          void up_dight(int num)//显示最上面的数码管
+   7          {
+   8   1        int t_num = num/1000;
+   9   1        int h_num = (num - t_num * 1000)/100;
+  10   1        int ten_num = (num - t_num*1000 - h_num*100)/10;
+  11   1        num = num - t_num*1000 - h_num*100 - ten_num*10;
+  12   1        P5 = 0XF7;//上一右一显示
+  13   1        P6 = 0XFF;
+  14   1        P7 = tab[num];
+  15   1        Delay_us(500);
+  16   1        P5 = 0XFB;//上一右二
+  17   1        P6 = 0XFF;
+  18   1        P7 = tab[ten_num];            
+  19   1        Delay_us(500);
+  20   1        P5 = 0XFD;//上一右三
+  21   1        P6 = 0XFF;
+  22   1        P7 = tab[h_num];
+  23   1        Delay_us(500);  
+  24   1        P5 = 0XFE;//上一右四
+  25   1        P6 = 0XFF;
+  26   1        P7 = tab[t_num];
+  27   1        Delay_us(500);
+  28   1      }
+  29          
+  30          void meind_dight(int num)//显示中间的数码管
+  31          {
+  32   1        int t_num = num/1000;
+  33   1        int h_num = (num - t_num * 1000)/100;
+  34   1        int ten_num = (num - t_num*1000 - h_num*100)/10;
+  35   1        num = num - t_num*1000 - h_num*100 - ten_num*10;
+  36   1        P5 = 0X7F;//中右一
+  37   1        P6 = 0XFF;
+  38   1        P7 = tab[num];
+  39   1        Delay_us(500);
+  40   1        P5 = 0XBF;//中右二
+  41   1        P6 = 0XFF;
+  42   1        P7 = tab[ten_num];
+  43   1        Delay_us(500);
+  44   1        P5 = 0XDF;//中右三
+  45   1        P6 = 0XFF;
+  46   1        P7 = tab[h_num];
+  47   1        Delay_us(500);
+  48   1        P5 = 0XEF;//中右四
+  49   1        P6 = 0XFF;
+  50   1        P7 = tab[t_num];
+  51   1        Delay_us(500);
+  52   1      }
+  53          
+  54          void down_dight(int num)//显示最下面的数码管
+  55          {
+C51 COMPILER V9.52.0.0   DIGHT                                                             04/26/2024 19:45:12 PAGE 2   
+
+  56   1        int t_num = num/1000;
+  57   1        int h_num = (num - t_num * 1000)/100;
+  58   1        int ten_num = (num - t_num*1000 - h_num*100)/10;
+  59   1        num = num - t_num*1000 - h_num*100 - ten_num*10;
+  60   1        P5 = 0XFF;//下左一
+  61   1        P6 = 0XFE;
+  62   1        P7 = tab[t_num];
+  63   1        Delay_us(500);    
+  64   1        P5 = 0XFF;//下左二
+  65   1        P6 = 0XFD;
+  66   1        P7 = tab[h_num];
+  67   1        Delay_us(500);
+  68   1        P5 = 0XFF;//下左三
+  69   1        P6 = 0XFB;
+  70   1        P7 = tab[ten_num];
+  71   1        Delay_us(500);
+  72   1        P5 = 0XFF;//下左四
+  73   1        P6 = 0XF7;
+  74   1        P7 = tab[num];
+  75   1        Delay_us(500);
+  76   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    898    ----
+   CONSTANT SIZE    =     11    ----
+   XDATA SIZE       =   ----      24
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

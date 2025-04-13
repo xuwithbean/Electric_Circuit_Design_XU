@@ -1,0 +1,716 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN .\Objects\main.obj
+COMPILER INVOKED BY: D:\keilv4_51\C51\BIN\C51.EXE source\source\main.c LARGE BROWSE INCDIR(.\source\head file) DEBUG OBJ
+                    -ECTEXTEND PRINT(.\Listings\main.lst) TABS(2) OBJECT(.\Objects\main.obj)
+
+line level    source
+
+   1          #include "stdio.h"
+   2          #include "c8051f020.h"
+   3          #include "intrins.h"
+   4          #include "lcd.h"
+   5          #include "led.h"
+   6          
+   7          #define SYSCLK    11059200
+   8          #define SAMPLERATE0    50000
+   9          #define RI1  SCON1&0x01
+  10          
+  11          #define AMX0SL_AIN   8
+  12          #define INT_DEC      256
+  13          #define SAMPLE_RATE_DAC 100000L        // DAC sampling rate in Hz
+  14          #define PHASE_PRECISION 65536          // range of phase accumulator
+  15          #define FREQUENCY       1000           // Frequency of output waveform in Hz
+  16          
+  17          #define TIMER_PRESCALER            12  // Based on Timer CKCON settings
+  18          #define LED_TOGGLE_RATE            100 // LED toggle rate in milliseconds    1ms
+  19          // if LED_TOGGLE_RATE = 1, the LED will
+  20          // be on for 1 millisecond and off for
+  21          // 1 millisecond
+  22          
+  23          // There are SYSCLK/TIMER_PRESCALER timer ticks per second, so
+  24          // SYSCLK/TIMER_PRESCALER/1000 timer ticks per millisecond.
+  25          #define TIMER_TICKS_PER_MS  SYSCLK/TIMER_PRESCALER/1000
+  26          
+  27          // Note: LED_TOGGLE_RATE*TIMER_TICKS_PER_MS should not exceed 65535 (0xFFFF)
+  28          // for the 16-bit timer
+  29          
+  30          #define AUX1     TIMER_TICKS_PER_MS*LED_TOGGLE_RATE
+  31          #define AUX2     -AUX1
+  32          #define AUX3     AUX2&0x00FF
+  33          #define AUX4     ((AUX2&0xFF00)>>8)
+  34          
+  35          #define TIMER0_RELOAD_HIGH       AUX4  // Reload value for Timer0 high byte
+  36          #define TIMER0_RELOAD_LOW        AUX3  // Reload value for Timer0 low byte
+  37          
+  38          #define uchar unsigned char
+  39          #define uint unsigned int
+  40          
+  41          sfr16 TMR3     = 0x94;
+  42          sfr16 ADC0     = 0xbe;
+  43          extern void          _nop_     (void);
+  44          sbit INT1 = P0^2; //0的时候按键没用
+  45          
+  46          unsigned int PHASE_ADD = FREQUENCY * PHASE_PRECISION / SAMPLE_RATE_DAC;
+  47          long ADC0_result[2];    //AD转换缓冲
+  48          int xdata v[10];
+  49          int xdata u[10];
+  50          unsigned char count=0,tcount=0;   //按键计时
+  51          int w1,x1,y1,z1;//led第一行显示数字
+  52          int w2,x2,y2,z2;//led第二行显示数字
+  53          int w3,x3,y3,z3;//led第三行显示数字
+  54          int setting=2300;//设定控制电压值
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 2   
+
+  55          int result;//画波形图时的中转值（16进制）
+  56          long xdata result2;//画波形图时的中转值（10进制）
+  57          
+  58          
+  59          float kp=1.5;//PID参数
+  60          float ki=0.05;
+  61          float kd=0.45;
+  62          int error,derror;//误差中间量
+  63          int preerror=0;
+  64          int lasterror=0;
+  65          long sumerror=0;//误差积分
+  66          int output;//输出
+  67          int codenum;
+  68          int code1234[4]={0,0,0,0};
+  69          int mimaflag=0;
+  70          int mimacount=0;
+  71          int mima1[4]={1,2,3,4};
+  72          int mima2[4]={0,0,0,0};
+  73          unsigned int channel = 1;
+  74          //unsigned char xdata temp[12];//ram超了
+  75          int SIN_temp,Square_temp,Triangle_temp;
+  76          unsigned char idata key_delay;
+  77          unsigned int idata lcd_delay;
+  78          volatile int xdata wavevalue[128]= {0};
+  79          unsigned char idata wavepos=0;
+  80          unsigned int idata filtertype=0;
+  81          unsigned int idata filtertype2=0;
+  82          int idata init=10;
+  83          volatile unsigned char idata samplepos=0;
+  84          volatile long idata slidesum=0;
+  85          unsigned int ledcount=0;//延时显示波形用
+  86          //上面是实验二用的变量
+  87          
+  88          unsigned int Time_num; //全局计时用
+  89          unsigned int Time_num2; //全局计时用
+  90          unsigned int Time_num3; //全局计时用
+  91          unsigned int botflag=4;//按键标志 0，1，2分别表示左、中、右，按完返回4
+  92          unsigned int TRflag=0; //TR值的标志，用于计时器启停
+  93          unsigned int mainflag=0;//页面标志
+  94          unsigned int showflag1=0;//实验一显示标志
+  95          unsigned int showflag2=0;//实验二显示标志
+  96          unsigned int imgflag=0;//实验一图片标志
+  97          unsigned int GFlag=0;//实验一gif变量
+  98          
+  99          int state = 0;//标志PID 二级菜单三个状态的变量
+ 100          char s[15] = "               ";
+ 101          //-----------------------------------------------------------------------------
+ 102          // 16-bit SFR Definitions for 'F02x
+ 103          //-----------------------------------------------------------------------------
+ 104          
+ 105          sfr16 RCAP4    = 0xE4;                 // Timer4 capture/reload
+ 106          sfr16 TMR4     = 0xF4;                 // Timer4
+ 107          sfr16 DAC0     = 0xd2;                 // DAC0 data
+ 108          uchar code SONG_TONE[]={212,212,190,212,159,169,212,212,190,212,142,159,
+ 109          212,212,106,126,159,169,190,119,119,126,159,142,159,0};
+ 110          uchar code SONG_LONG[]={9,3,12,12,12,24,9,3,12,12,12,24,
+ 111          9,3,12,12,12,12,12,9,3,12,12,12,24,0};
+ 112          
+ 113          
+ 114          void PlayMusic()
+ 115          {
+ 116   1      uint i=0,j,k;
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 3   
+
+ 117   1      while(SONG_LONG[i]!=0||SONG_TONE[i]!=0){
+ 118   2          for(j=0;j<SONG_LONG[i]*20;j++){
+ 119   3          if(P4==0x00) P4=0xff;
+ 120   3          else P4=0x00;
+ 121   3          for(k=0;k<SONG_TONE[i]/3;k++);
+ 122   3          }
+ 123   2          Delay_ms(10);
+ 124   2          i++;
+ 125   2      }
+ 126   1      }
+ 127          void showlock()
+ 128          {
+ 129   1        ImageShow1(gImage_lock1);
+ 130   1        Delay_ms(1000);
+ 131   1        ImageShow1(gImage_lock2);
+ 132   1        Delay_ms(1000);
+ 133   1        ImageShow1(gImage_lock3);
+ 134   1        Delay_ms(1000);
+ 135   1        ImageShow1(gImage_lock4);
+ 136   1        Delay_ms(1000);
+ 137   1      }
+ 138          void SYSCLK_Init (void)//系统时钟初始化
+ 139          {
+ 140   1          int i;                      // 延时计数器
+ 141   1          OSCXCN = 0x67;              // 使用外部22.1184MHz晶振
+ 142   1          for (i=0; i<256; i++);      // 等待1ms
+ 143   1          while (!(OSCXCN & 0x80));   // 等待外部振荡器稳定
+ 144   1          OSCICN = 0x88;              // 切换到外部晶振
+ 145   1      
+ 146   1      }
+ 147          void PORT_Init (void)//端口初始化
+ 148          {
+ 149   1          XBR0     = 0X00;         //设置XBR0
+ 150   1          XBR1     = 0X14;         //设置XBR1
+ 151   1          XBR2     = 0X44;         //打开交叉开关和弱上拉
+ 152   1          P74OUT  &= 0xcc;
+ 153   1          P2MDOUT |= 0x7F;
+ 154   1          P0MDOUT|= 0x03;
+ 155   1          P1MDOUT=0xFF;      //端口1设置为推挽输出
+ 156   1          P2MDOUT=0xFF;      //端口2设置为推挽输出
+ 157   1          P3MDOUT=0xFF;      //端口3设置为推挽输出
+ 158   1      }
+ 159          void Port_IO_Init()//IO口初始化
+ 160          {
+ 161   1          //set P4[1] to push_pull model
+ 162   1          P74OUT |= 0x01;
+ 163   1      
+ 164   1          //enable crossbar
+ 165   1          XBR2 |= 0x40;
+ 166   1      
+ 167   1          //close the alam P4.1
+ 168   1          P4 &= 0xfd;
+ 169   1      
+ 170   1          //uart1,int1
+ 171   1          XBR1 |= 0x14;
+ 172   1          XBR2 |= 0x44;
+ 173   1      }
+ 174          
+ 175          void Oscillator_Init()//晶振初始化
+ 176          {
+ 177   1          int i = 0;
+ 178   1          OSCXCN    = 0x67;
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 4   
+
+ 179   1          for (i = 0; i < 3000; i++);  // Wait 1ms for initialization
+ 180   1          while ((OSCXCN & 0x80) == 0);
+ 181   1          OSCICN    = 0x08;
+ 182   1      }
+ 183          
+ 184          void Timer0_Init(void)//定时器0初始化
+ 185          {
+ 186   1          TH0 = TIMER0_RELOAD_HIGH;           // Reinit Timer0 High register
+ 187   1          TL0 = TIMER0_RELOAD_LOW;
+ 188   1          ET0 = 1;                            // Timer0 interrupt enabled
+ 189   1          TMOD = 0x01;                        // 16-bit Mode Timer0
+ 190   1          //TCON |= 0x10;                        // Timer0 ON
+ 191   1      }
+ 192          
+ 193          void Timer3_Init (int counts)//定时器3初始化
+ 194          {
+ 195   1          TMR3CN = 0x02;                      // 停止Timer3; 清除TF3;
+ 196   1          TMR3RLL=-counts;                   // 初始化装载值
+ 197   1          TMR3=0xffff;                 // 设置立即装载
+ 198   1          EIE2&=0xFE;                     // 禁止定时器Timer3中断
+ 199   1          TMR3CN|= 0x04;                     // 开启Timer3
+ 200   1      }
+ 201          void Timer2_Init (void)//定时器2初始化 为DA0转换提供
+ 202          {
+ 203   1          RCAP2H=0x05;
+ 204   1          RCAP2L=0x00;
+ 205   1          TH2=0x05;
+ 206   1          TL2=0x00;
+ 207   1          T2CON=0x04;
+ 208   1          IE|= 0x20;
+ 209   1      }
+ 210          
+ 211          void Interrupt_Init()//中断初始化
+ 212          {
+ 213   1          //INT1
+ 214   1          //low level triggle
+ 215   1          IT1 = 0;
+ 216   1          //enable INT1
+ 217   1          EX1 = 1;
+ 218   1          //enable all interrupt
+ 219   1          EA = 1;
+ 220   1      }
+ 221          
+ 222          void Init_Device(void)//各种初始化函数
+ 223          {
+ 224   1          //关闭看门狗
+ 225   1          EA = 0;
+ 226   1          WDTCN = 0xde;
+ 227   1          WDTCN = 0xad;
+ 228   1          EA = 1;
+ 229   1      
+ 230   1          Oscillator_Init();
+ 231   1          Port_IO_Init();
+ 232   1          Timer0_Init();
+ 233   1          Interrupt_Init();
+ 234   1          SYSCLK_Init ();//
+ 235   1          PORT_Init();//
+ 236   1          Timer3_Init(SYSCLK/SAMPLERATE0);//
+ 237   1          //TIMER4_Init(SYSCLK/SAMPLE_RATE_DAC);
+ 238   1          Timer2_Init ();//
+ 239   1          INT1 = 1;
+ 240   1          TR0=1;
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 5   
+
+ 241   1          EX1=1;
+ 242   1          AD0EN=1;
+ 243   1          EA=1;
+ 244   1      
+ 245   1          LcdInit();
+ 246   1          LedInit();
+ 247   1      }
+ 248          
+ 249          void information(void)
+ 250          {
+ 251   1          WriteStr(0, 0, "个人信息");
+ 252   1          WriteStr(1, 0, "班级：自动化2205");
+ 253   1          WriteStr(2, 0, "姓名：肖嘉旭");
+ 254   1          WriteStr(3, 0, "学号：2226114221");
+ 255   1          
+ 256   1          LedDispNum();
+ 257   1          if (botflag==2) {
+ 258   2              mainflag=0;
+ 259   2              LcdClear();
+ 260   2              botflag=4;
+ 261   2          }
+ 262   1      }
+ 263          void picture(void)
+ 264          {
+ 265   1        LedDispNum();
+ 266   1        ImageShow1(xjtu_image1);
+ 267   1        Delay_ms(1000);
+ 268   1        LcdClear();
+ 269   1        ImageShow1(gImage_white);
+ 270   1        mainflag=0;
+ 271   1        
+ 272   1        
+ 273   1      }
+ 274          void system(void)
+ 275          {
+ 276   1        if(mimacount==0)
+ 277   1        {
+ 278   2          ImageShow1(xjtu_image2);
+ 279   2          Delay_ms(1000);
+ 280   2          LedDispNum();
+ 281   2          mimacount=1;
+ 282   2          mimaflag=0;
+ 283   2        }
+ 284   1        
+ 285   1          if(mimaflag==0)
+ 286   1          {
+ 287   2            
+ 288   2              ImageShow1(gImage_white);
+ 289   2              WriteStr(0, 0, "密码锁系统");
+ 290   2              WriteStr(1, 0, "进入请按左键");
+ 291   2              WriteStr(2, 0, "退出请按右键");
+ 292   2              WriteStr(3, 0, "设置请按中键");
+ 293   2              if (botflag==0) 
+ 294   2            {
+ 295   3                mimaflag=1;
+ 296   3                codenum=0;
+ 297   3                LcdClear();
+ 298   3                ImageShow1(gImage_white);
+ 299   3                botflag=4;
+ 300   3            }
+ 301   2            if (botflag==1) 
+ 302   2            {
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 6   
+
+ 303   3                mimaflag=4;
+ 304   3                codenum=0;
+ 305   3                LcdClear();
+ 306   3                ImageShow1(gImage_white);
+ 307   3                botflag=4;
+ 308   3            }
+ 309   2            if (botflag==2) 
+ 310   2            {
+ 311   3              mimaflag=2;
+ 312   3              LcdClear();
+ 313   3              ImageShow1(gImage_white);
+ 314   3              botflag=4;
+ 315   3            }
+ 316   2          }
+ 317   1          if(mimaflag==1) 
+ 318   1          {
+ 319   2              WriteStr(0, 0, "请输入密码");
+ 320   2              WriteStr(1, 0, "左键选位，中键加1 ，右键确认");
+ 321   2              
+ 322   2              if(botflag==0)
+ 323   2              {
+ 324   3                codenum=codenum+1;
+ 325   3                if(codenum==4)
+ 326   3                {
+ 327   4                  
+ 328   4                  codenum=0;
+ 329   4                }
+ 330   3                LcdClear();
+ 331   3                ImageShow1(gImage_white);
+ 332   3                if(codenum==0)
+ 333   3                {
+ 334   4                  WriteStr(3,0,"*");
+ 335   4                }
+ 336   3                if(codenum==1)
+ 337   3                {
+ 338   4                  WriteStr(3,0,"* *");
+ 339   4                }
+ 340   3                if(codenum==2)
+ 341   3                {
+ 342   4                  WriteStr(3,0,"* * *");
+ 343   4                }
+ 344   3                if(codenum==3)
+ 345   3                {
+ 346   4                  WriteStr(3,0,"* * * *");
+ 347   4                }
+ 348   3                botflag=4;
+ 349   3              }
+ 350   2              if(botflag==1)
+ 351   2              {
+ 352   3                code1234[codenum]++;
+ 353   3                if(code1234[codenum]==10)
+ 354   3                {
+ 355   4                  code1234[codenum]=0;
+ 356   4                }
+ 357   3                botflag=4;
+ 358   3              }
+ 359   2              if(botflag==2)
+ 360   2              {
+ 361   3                mimaflag=3;
+ 362   3                LcdClear();
+ 363   3                ImageShow1(gImage_white);
+ 364   3                botflag=4;
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 7   
+
+ 365   3              }
+ 366   2          }
+ 367   1          if(mimaflag==3)
+ 368   1          {
+ 369   2            WriteStr(0, 0, "确定密码？");
+ 370   2            WriteStr(1, 0, "左键确定，右键清空");
+ 371   2            if(botflag==0)
+ 372   2            {
+ 373   3            if(code1234[0]==mima1[0]&&code1234[1]==mima1[1]&&code1234[2]==mima1[2]&&code1234[3]==mima1[3])
+ 374   3            {
+ 375   4              LcdClear();
+ 376   4              ImageShow1(gImage_white);
+ 377   4              WriteStr(0, 0, "密码right");
+ 378   4              PlayMusic();
+ 379   4              LcdClear();
+ 380   4              ImageShow1(gImage_white);
+ 381   4              showlock();
+ 382   4              mainflag=0;
+ 383   4            }
+ 384   3            if(code1234[0]!=mima1[0]||code1234[1]!=mima1[1]||code1234[2]!=mima1[2]||code1234[3]!=mima1[3])
+ 385   3            {
+ 386   4              LcdClear();
+ 387   4              ImageShow1(gImage_white);
+ 388   4              WriteStr(0, 0, "错误");
+ 389   4              P4=0xff;
+ 390   4              Delay_ms(1000);
+ 391   4              P4=0x00;
+ 392   4              Delay_ms(1000);
+ 393   4              P4=0xff;
+ 394   4              Delay_ms(1000);
+ 395   4              P4=0x00;
+ 396   4              mimaflag=0;
+ 397   4            }
+ 398   3              botflag=4;
+ 399   3            }
+ 400   2            if(botflag==2)
+ 401   2            {
+ 402   3              code1234[0]=0;
+ 403   3              code1234[1]=0;
+ 404   3              code1234[2]=0;
+ 405   3              code1234[3]=0;
+ 406   3              codenum=0;
+ 407   3              botflag=4;
+ 408   3              mimaflag=1;
+ 409   3              
+ 410   3              
+ 411   3            }
+ 412   2          }
+ 413   1          if(mimaflag==4)
+ 414   1          {
+ 415   2            WriteStr(0, 0, "请输入密码");
+ 416   2              WriteStr(1, 0, "左键选位，中键加1 ，右键确认");
+ 417   2              
+ 418   2              if(botflag==0)
+ 419   2              {
+ 420   3                codenum=codenum+1;
+ 421   3                if(codenum==4)
+ 422   3                {
+ 423   4                  
+ 424   4                  codenum=0;
+ 425   4                }
+ 426   3                LcdClear();
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 8   
+
+ 427   3                ImageShow1(gImage_white);
+ 428   3                if(codenum==0)
+ 429   3                {
+ 430   4                  WriteStr(3,0,"*");
+ 431   4                }
+ 432   3                if(codenum==1)
+ 433   3                {
+ 434   4                  WriteStr(3,0,"* *");
+ 435   4                }
+ 436   3                if(codenum==2)
+ 437   3                {
+ 438   4                  WriteStr(3,0,"* * *");
+ 439   4                }
+ 440   3                if(codenum==3)
+ 441   3                {
+ 442   4                  WriteStr(3,0,"* * * *");
+ 443   4                }
+ 444   3                botflag=4;
+ 445   3              }
+ 446   2              if(botflag==1)
+ 447   2              {
+ 448   3                code1234[codenum]++;
+ 449   3                if(code1234[codenum]==10)
+ 450   3                {
+ 451   4                  code1234[codenum]=0;
+ 452   4                }
+ 453   3                botflag=4;
+ 454   3              }
+ 455   2              if(botflag==2)
+ 456   2              {
+ 457   3                mimaflag=6;
+ 458   3                LcdClear();
+ 459   3                ImageShow1(gImage_white);
+ 460   3                botflag=4;
+ 461   3              }
+ 462   2          }
+ 463   1          if(mimaflag==6)
+ 464   1          {
+ 465   2            WriteStr(0, 0, "确定密码？");
+ 466   2            WriteStr(1, 0, "左键确定，右键清空");
+ 467   2            if(botflag==0)
+ 468   2            {
+ 469   3            if(code1234[0]==mima1[0]&&code1234[1]==mima1[1]&&code1234[2]==mima1[2]&&code1234[3]==mima1[3])
+ 470   3            {
+ 471   4              LcdClear();
+ 472   4              ImageShow1(gImage_white);
+ 473   4              WriteStr(0, 0, "密码right");
+ 474   4              PlayMusic();
+ 475   4              LcdClear();
+ 476   4              ImageShow1(gImage_white);
+ 477   4              showlock();
+ 478   4              mimaflag=5;
+ 479   4            }
+ 480   3            if(code1234[0]!=mima1[0]||code1234[1]!=mima1[1]||code1234[2]!=mima1[2]||code1234[3]!=mima1[3])
+ 481   3            {
+ 482   4              LcdClear();
+ 483   4              ImageShow1(gImage_white);
+ 484   4              WriteStr(0, 0, "错误");
+ 485   4              P4=0x00;
+ 486   4              Delay_ms(1000);
+ 487   4              P4=0xff;
+ 488   4              Delay_ms(1000);
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 9   
+
+ 489   4              P4=0x00;
+ 490   4              Delay_ms(1000);
+ 491   4              P4=0xff;
+ 492   4              mimaflag=4;
+ 493   4            }
+ 494   3              botflag=4;
+ 495   3          }
+ 496   2        }
+ 497   1          if(mimaflag==5)
+ 498   1          {
+ 499   2            WriteStr(0, 0, "请设置密码");
+ 500   2              WriteStr(1, 0, "左键选位，中键加1 ，右键确认");
+ 501   2              
+ 502   2              if(botflag==0)
+ 503   2              {
+ 504   3                codenum=codenum+1;
+ 505   3                if(codenum==4)
+ 506   3                {
+ 507   4                  
+ 508   4                  codenum=0;
+ 509   4                }
+ 510   3                LcdClear();
+ 511   3                ImageShow1(gImage_white);
+ 512   3                if(codenum==0)
+ 513   3                {
+ 514   4                  WriteStr(3,0,"*");
+ 515   4                }
+ 516   3                if(codenum==1)
+ 517   3                {
+ 518   4                  WriteStr(3,0,"* *");
+ 519   4                }
+ 520   3                if(codenum==2)
+ 521   3                {
+ 522   4                  WriteStr(3,0,"* * *");
+ 523   4                }
+ 524   3                if(codenum==3)
+ 525   3                {
+ 526   4                  WriteStr(3,0,"* * * *");
+ 527   4                }
+ 528   3                botflag=4;
+ 529   3              }
+ 530   2              if(botflag==1)
+ 531   2              {
+ 532   3                code1234[codenum]++;
+ 533   3                if(code1234[codenum]==10)
+ 534   3                {
+ 535   4                  code1234[codenum]=0;
+ 536   4                }
+ 537   3                botflag=4;
+ 538   3              }
+ 539   2              if(botflag==2)
+ 540   2              {
+ 541   3                mima1[0]=code1234[0];
+ 542   3                mima1[1]=code1234[1];
+ 543   3                mima1[2]=code1234[2];
+ 544   3                mima1[3]=code1234[3];
+ 545   3                LcdClear();
+ 546   3                ImageShow1(gImage_white);
+ 547   3                mainflag=0;
+ 548   3                
+ 549   3                botflag=4;
+ 550   3              }
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 10  
+
+ 551   2          }
+ 552   1          if(mimaflag==2)
+ 553   1          {
+ 554   2            mainflag=0;
+ 555   2            LcdClear();
+ 556   2            ImageShow1(gImage_white);
+ 557   2            botflag=4;
+ 558   2          }
+ 559   1          show_mima_row(code1234);
+*** WARNING C182 IN LINE 559 OF source\source\main.c: pointer to different objects
+ 560   1      }
+ 561          //-----------------------------------------------------------------------------
+ 562          // 主程序
+ 563          //-----------------------------------------------------------------------------
+ 564          void main()
+ 565          {
+ 566   1        Init_Device();//各种初始化
+ 567   1          INT1 = 1;//开启中断
+ 568   1          TR0=0;//计时器停止
+ 569   1      
+ 570   1          while(1)
+ 571   1          {
+ 572   2              if(mainflag==0)//主界面
+ 573   2              {
+ 574   3                mimacount=0;
+ 575   3                  ImageShow1(gImage_white);
+ 576   3                  WriteStr(0, 0, "实验一") ;
+ 577   3                  WriteStr(1, 0, "个人信息");
+ 578   3                  WriteStr(2, 0, "图片展示");
+ 579   3                  WriteStr(3, 0, "密码锁");
+ 580   3                  output = 0;
+ 581   3                  LedDispNum();
+ 582   3                  if (botflag==0) {
+ 583   4                      mainflag=1;
+ 584   4                      LcdClear();
+ 585   4                      botflag=4;
+ 586   4                  }
+ 587   3                  if (botflag==1) {
+ 588   4                      mainflag=2;
+ 589   4                      LcdClear();
+ 590   4                      botflag=4;
+ 591   4                  }
+ 592   3                  if (botflag==2) {
+ 593   4                      mainflag=3;
+ 594   4                      LcdClear();
+ 595   4                      botflag=4;
+ 596   4                  }
+ 597   3              }
+ 598   2              if(mainflag==1) {
+ 599   3                  information();   //个人信息界面
+ 600   3              }
+ 601   2              if(mainflag==2) {
+ 602   3                  picture();   //图片界面
+ 603   3                  mainflag==0;
+*** WARNING C275 IN LINE 603 OF source\source\main.c: expression with possibly no effect
+ 604   3              }
+ 605   2              if(mainflag==3) {
+ 606   3                  system();   //系统启动
+ 607   3              }
+ 608   2          }
+ 609   1      }
+ 610          
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 11  
+
+ 611          void INT1_ISR(void) interrupt 2
+ 612          {
+ 613   1          Delay_ms(1);
+ 614   1          switch(P5)
+ 615   1          {
+ 616   2          case 0xfb:   //左边那个键
+ 617   2              botflag=0;
+ 618   2              Delay_ms(50);
+ 619   2              break;
+ 620   2      
+ 621   2          case 0xfd:    //中间那个键
+ 622   2              botflag=1;
+ 623   2              Delay_ms(50);
+ 624   2              if(mainflag==2)state=(state+1)%4;
+ 625   2              break;
+ 626   2      
+ 627   2          case 0xfe:   //右边那个键
+ 628   2              botflag=2;
+ 629   2              Delay_ms(50);
+ 630   2              break;
+ 631   2          }
+ 632   1      }
+ 633          
+ 634          void Timer0_ISR (void) interrupt 1
+ 635          {
+ 636   1          TH0 = TIMER0_RELOAD_HIGH;           // Reinit Timer0 High register
+ 637   1          TL0 = TIMER0_RELOAD_LOW;
+ 638   1      
+ 639   1          Time_num++;
+ 640   1      
+ 641   1          if(Time_num >= 6000) Time_num = 0;
+ 642   1          if(key_delay>0)
+ 643   1              key_delay++;
+ 644   1          if(key_delay==20) key_delay=0;
+ 645   1      
+ 646   1          if(lcd_delay>0)
+ 647   1              lcd_delay++;
+ 648   1          if(lcd_delay>100) lcd_delay=0;
+ 649   1      }
+ 650          void Timer1_ISR(void) interrupt 3//定时器1中断
+ 651          {
+ 652   1          TH1|=0xfc;
+ 653   1          TL1|=0x18;
+ 654   1          tcount++;
+ 655   1          if(tcount>=20)
+ 656   1          {
+ 657   2              tcount=0;
+ 658   2      //      Timeout=1;
+ 659   2          }
+ 660   1          count++;
+ 661   1      }
+ 662          void Time2_ISR(void) interrupt 5 // 定时器2中断服务
+ 663          {
+ 664   1          TF2=0;
+ 665   1          //Set_DACs_forsine();//生成函数点
+ 666   1          DAC0=output;
+ 667   1      }
+ 668          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   3234    ----
+C51 COMPILER V9.52.0.0   MAIN                                                              03/03/2025 19:08:15 PAGE 12  
+
+   CONSTANT SIZE    =    297    ----
+   XDATA SIZE       =    443       2
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =     15    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

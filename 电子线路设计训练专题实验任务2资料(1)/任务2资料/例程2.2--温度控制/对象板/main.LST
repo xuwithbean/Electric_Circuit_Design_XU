@@ -1,0 +1,136 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              05/18/2022 17:44:21 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /************************************************
+   2          designed by wjj
+   3          wjj12138@stu.xjtu.edu.cn
+   4          ************************************************/
+   5          #include "sysclk.h"
+   6          #include "time.h"
+   7          #include "port.h"
+   8          #include "adc.h"
+   9          #include "dight.h"
+  10          #include "lcd.h"
+  11          #include <stdio.h>
+  12          
+  13          uchar code str0[]="自动化钱91徐彬琰";
+  14          uchar code str1[]="温度控制系统";
+  15          uchar code str4[]="摄氏度";
+  16          uchar zkbtemp[10];
+  17          //uchar code str2[]="学号：2150504124";
+  18          //uchar code str3[]="0123456789ABCDEF";
+  19          
+  20          unsigned int Time_num;
+  21          int zkb;//占空比
+  22          int temp;//温度
+  23          
+  24          //dac初始化
+  25          void dac0_init(void)
+  26          {
+  27   1        DAC0CN = 0x80;//使能dac，dac更新在写dac0h，数据格式为正常数据格式
+  28   1        REF0CN |= 0x03;//打开ADC，dac偏压发生器，基准电压由vref提供
+  29   1      }
+  30          
+  31          //pac初始化
+  32          void PCA0_initial(void)
+  33          {
+  34   1        PCA0CPM0=0xc3;//16位pwm，允许比较器，使能pwm，允许中断
+  35   1        PCA0CPL0=0x80;
+  36   1        PCA0CPH0=0x7f;//捕捉比较模块定初值，先写低位
+  37   1        PCA0L=0x00;
+  38   1        PCA0H=0x00;   //定时器定初值
+  39   1        PCA0MD=0x01;  //允许中断请求
+  40   1        PCA0CN=0x41;  //允许定时器模块
+  41   1      }
+  42          
+  43          //所有的初始化函数
+  44          void Init_Device(void)
+  45          {
+  46   1          EA = 0;//关闭总中断
+  47   1          WDTCN = 0xde;
+  48   1          WDTCN = 0xad;//关闭看门狗
+  49   1          //EA = 1;//打开总中断
+  50   1          SYSCLK_Init();//时钟初始化
+  51   1          Timer0_Init();//计时器0初始化
+  52   1          Port_IO_Init();//端口初始化
+  53   1          timer3_init();//定时器3初始化
+  54   1          ADC0_Init();//ADC0初始化
+  55   1          dac0_init();//dac0初始化
+C51 COMPILER V9.52.0.0   MAIN                                                              05/18/2022 17:44:21 PAGE 2   
+
+  56   1          PCA0_initial();//PCA0初始化
+  57   1          LcdInit();
+  58   1          CCF0=0;//手动清理PAC0溢出位
+  59   1          //EA=1;//打开总中断
+  60   1          EIE1=0x08;//允许PAC0中断请求
+  61   1      }
+  62          
+  63          void nub_lcd(int num)
+  64          {
+  65   1        char s[3];
+  66   1        s[0] = num/10 + 48;
+  67   1        s[1] = num%10 + 48;
+  68   1        s[3] = '\0';
+  69   1        PutStr(2, 0, s);
+  70   1        PutStr(2, 1, str4);
+  71   1        //PutStr(2, 3, str4);
+  72   1        //PutStr(2, 4, str4);
+  73   1      }
+  74          
+  75          void main(void)
+  76          {
+  77   1        Init_Device();//初始化
+  78   1        PutStr(0, 0, str0);
+  79   1        PutStr(1, 0, str1);
+  80   1        //PutStr(2, 0, str2);
+  81   1        //PutStr(3, 0, str3);
+  82   1        EA=1;
+  83   1        while(1)
+  84   1        {
+  85   2        }
+  86   1      }
+  87          
+  88          //pac0溢出中断函数
+  89          void A(void) interrupt 9
+  90          {
+  91   1        int j_zkb = zkb;            
+  92   1        //down_dight(j_zkb);20
+  93   1        nub_lcd(temp/77+2);     //原：nub_lcd((temp/77-9))
+  94   1        j_zkb = 65536-65536 * j_zkb/100;//计算占空比 
+  95   1        sprintf(zkbtemp, "%d" , j_zkb);
+  96   1        //PutStr(3,0,zkbtemp);
+  97   1        if(j_zkb > -15000)
+  98   1        {
+  99   2          j_zkb = 100;
+ 100   2        }
+ 101   1        if(j_zkb < -19000)
+ 102   1        {
+ 103   2          j_zkb = 0;
+ 104   2        }
+ 105   1        PCA0CPL0 = j_zkb & (0x00ff);//
+ 106   1        PCA0CPH0 = j_zkb >> 8;//捕捉比较模块值，先写低位
+ 107   1        CCF0=0;//手动清理PAC0溢出位
+ 108   1        CF=0;//手动清0
+ 109   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    351    ----
+   CONSTANT SIZE    =     40    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     16       5
+C51 COMPILER V9.52.0.0   MAIN                                                              05/18/2022 17:44:21 PAGE 3   
+
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

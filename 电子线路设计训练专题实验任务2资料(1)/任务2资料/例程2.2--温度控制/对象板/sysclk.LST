@@ -1,0 +1,46 @@
+C51 COMPILER V9.52.0.0   SYSCLK                                                            05/18/2022 17:44:21 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE SYSCLK
+OBJECT MODULE PLACED IN sysclk.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE sysclk.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "sysclk.h"
+   2          
+   3          void SYSCLK_Init (void)
+   4          {
+   5   1         int i;                      
+   6   1         OSCXCN = 0x67;              // 选择晶体振荡器，板载晶振为11.0592
+   7   1         for (i=0; i<256; i++);      // 延时让晶振稳定
+   8   1         while (!(OSCXCN & 0x80));   // 提取最高位，判断晶振是否稳定
+   9   1         OSCICN = 0x88;              // 选择外部晶振作为时钟
+  10   1      }
+  11          
+  12          void Delay_us(unsigned int times)//这是一个延时函数
+  13          {
+  14   1          unsigned int i;
+  15   1      
+  16   1          for (i=0; i<times; i++)
+  17   1          {
+  18   2              _nop_();
+  19   2              _nop_();
+  20   2              _nop_();
+  21   2              _nop_();
+  22   2          }
+  23   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     50    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

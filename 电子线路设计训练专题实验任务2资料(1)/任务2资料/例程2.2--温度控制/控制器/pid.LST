@@ -1,0 +1,138 @@
+C51 COMPILER V9.52.0.0   PID                                                               07/09/2020 12:11:32 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE PID
+OBJECT MODULE PLACED IN pid.OBJ
+COMPILER INVOKED BY: D:\Keil_v5c51\C51\BIN\C51.EXE pid.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include <reg52.h> 
+   2          #include <intrins.h> 
+   3          typedef   unsigned   char        uint8;        
+   4          typedef   unsigned   int         uint16;   
+   5          typedef   unsigned   long int    uint32;                
+   6          /********************************* 
+   7          PID = Uk + KP*[E(k)-E(k-1)]+KI*E(k)+KD*[E(k)-2E(k-1)+E(k-2)];(???PID??) 
+   8          ????: RK(???),CK(???),KP,KI,KD 
+   9          ????: U(K) 
+  10          //PID???? 
+  11          ********************************/ 
+  12          void     PIDOperation (void)   
+  13          {  
+  14   1      uint32       Temp[3];                                        //?????? 
+  15   1      uint32       PostSum;                                       //??? 
+  16   1      uint32       NegSum;                                       //??? 
+  17   1      Temp[0] = 0; 
+  18   1      Temp[1] = 0; 
+  19   1      Temp[2] = 0; 
+  20   1      PostSum = 0; 
+  21   1      NegSum  = 0; 
+  22   1      
+  23   1      if( PID.RK_Uint16 > PID.RK_Uint16 )                    //?????????? 
+*** ERROR C200 IN LINE 23 OF pid.c: left side of '.' requires struct/union
+  24   1      { 
+  25   2       if( PID.RK_Uint16 - PID.RK_Uint16 >10 )            //????10?? 
+  26   2       { 
+  27   3        PID.Uk_Uint16 = 100;    //????10???????(????) 
+  28   3       }                     
+  29   2       else 
+  30   2      { 
+  31   3      Temp[0] = PID.RK_Uint16 - PID.CK_Uint16;       //??<=10,??E(k) 
+  32   3      PID.EkFlag_Uint8[1]=0;                        //E(k)??? 
+  33   3        //???? 
+  34   3      PID.Ek_Uint32[2] = PID.Ek_Uint32[1]; 
+  35   3      PID.Ek_Uint32[1] = PID.Ek_Uint32[0]; 
+  36   3      PID.Ek_Uint32[0] = Temp[0]; 
+  37   3      /****************************************/ 
+  38   3      if( PID.Ek_Uint32[0] >PID.Ek_Uint32[1] )                            //E(k)>E(k-1)?? 
+  39   3      { 
+  40   4      Temp[0]=PID.Ek_Uint32[0] - PID.Ek_Uint32[1];           //E(k)>E(k-1) 
+  41   4      PID.EkFlag_Uint8[0]=0;                                       //E(k)-E(k-1)???
+  42   4      } 
+  43   3      else 
+  44   3      { 
+  45   4      Temp[0]=PID.Ek_Uint32[0] - PID.Ek_Uint32[1];        //E(k)<E(k-1) 
+  46   4       PID.EkFlag_Uint8[0]=1;                                                //E(k)-E(k-1)???
+  47   4      }
+  48   3      /****************************************/ 
+  49   3      Temp[2]=PID.Ek_Uint32[1]*2 ;                                             // 2E(k-1) 
+  50   3      if( (PID.Ek_Uint32[0]+ PID.Ek_Uint32[2])>Temp[2] )            //E(k-2)+E(k)>2E(k-1)?? 
+  51   3      { 
+  52   4      Temp[2]=(PID.Ek_Uint32[0]+ PID.Ek_Uint32[2])-Temp[2];     //E(k-2)+E(k)>2E(k-1) 
+  53   4      PID.EkFlag_Uint8[2]=0;                                           //E(k-2)+E(k)-2E(k-1)??? 
+  54   4      } 
+C51 COMPILER V9.52.0.0   PID                                                               07/09/2020 12:11:32 PAGE 2   
+
+  55   3      else 
+  56   3      { 
+  57   4      Temp[2]=Temp[2]-(PID.Ek_Uint32[0]+ PID.Ek_Uint32[2]);  //E(k-2)+E(k)<2E(k-1) 
+  58   4      PID.EkFlag_Uint8[2]=1;                                      //E(k-2)+E(k)-2E(k-1)???
+  59   4      }  
+  60   3      /****************************************/        
+  61   3      Temp[0] = (uint32)PID.KP_Uint8 * Temp[0];                        // KP*[E(k)-E(k-1)] 
+  62   3      Temp[1] = (uint32)PID.KI_Uint8 * PID.Ek_Uint32[0];              // KI*E(k) 
+  63   3      Temp[2] = (uint32)PID.KD_Uint8 * Temp[2];                      // KD*[E(k-2)+E(k)-2E(k-1)] 
+  64   3      
+  65   3      
+  66   3      
+  67   3      
+  68   3      /*????????????????,?????*/      
+  69   3      /**********KP*[E(k)-E(k-1)]**********/ 
+  70   3      if(PID.EkFlag_Uint8[0]==0) 
+  71   3      PostSum += Temp[0];                                    //??? 
+  72   3      else                                               
+  73   3      NegSum += Temp[0];                                    //??? 
+  74   3      /********* KI*E(k)****************/  
+  75   3      if(PID.EkFlag_Uint8[1]==0)       
+  76   3      PostSum += Temp[1];                                 //??? 
+  77   3      else 
+  78   3      ;                                                 //???,E(K)>0 
+  79   3      /****KD*[E(k-2)+E(k)-2E(k-1)]****/                            
+  80   3      if(PID.EkFlag_Uint8[2]==0) 
+  81   3      PostSum += Temp[2];                               //??? 
+  82   3      else 
+  83   3      NegSum += Temp[2];                             //??? 
+  84   3      /***************U(K)***************/                              
+  85   3      PostSum += (uint32)PID.Uk_Uint16;     
+  86   3       
+  87   3      if(PostSum > NegSum )                         // ???????? 
+  88   3      { 
+  89   4      Temp[0] = PostSum - NegSum; 
+  90   4      if( Temp[0] < 100 )                         //????????????? 
+  91   4      PID.Uk_Uint16 = (uint16)Temp[0]; 
+  92   4      else 
+  93   4      PID.Uk_Uint16 = 100;                     //????????? 
+  94   4      } 
+  95   3      else                                     //????????,???0(??????) 
+  96   3      PID.Uk_Uint16 = 0; 
+  97   3      } 
+  98   2      } 
+  99   1      else  
+ 100   1      { 
+ 101   2      PID.Uk_Uint16 = 0;  
+ 102   2      }  
+ 103   1      } 
+ 104          
+ 105          void     PIDOutput (void)   
+ 106          {  
+ 107   1      static  int i; 
+ 108   1      i=PID.Uk_Uint16; 
+ 109   1      if(i==0) 
+ 110   1      out=1; 
+*** ERROR C202 IN LINE 110 OF pid.c: 'out': undefined identifier
+ 111   1      else out=0; 
+*** ERROR C202 IN LINE 111 OF pid.c: 'out': undefined identifier
+ 112   1      if((count++)==5)//??????40MS,40MS*5=0.2S(??????),????20S(100??) 
+*** ERROR C202 IN LINE 112 OF pid.c: 'count': undefined identifier
+ 113   1      {              //?20S PID???? 
+C51 COMPILER V9.52.0.0   PID                                                               07/09/2020 12:11:32 PAGE 3   
+
+ 114   2      count=0; 
+*** ERROR C202 IN LINE 114 OF pid.c: 'count': undefined identifier
+ 115   2      i--; 
+ 116   2      } 
+ 117   1      } 
+ 118          
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  5 ERROR(S)

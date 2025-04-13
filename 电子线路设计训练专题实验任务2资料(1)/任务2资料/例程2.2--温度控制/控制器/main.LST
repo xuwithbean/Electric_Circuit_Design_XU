@@ -1,0 +1,302 @@
+C51 COMPILER V9.52.0.0   MAIN                                                              04/26/2024 19:45:11 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE main.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /************************************************
+   2          designed by wjj
+   3          wjj12138@stu.xjtu.edu.cn
+   4          ************************************************/
+   5          #include "dight.h"
+   6          #include "sysclk.h"
+   7          #include "port.h"
+   8          #include "time.h"
+   9          #include "adc.h"
+  10          #include "lcd.h"
+  11          #include "string.h"
+  12          
+  13          #define TIMER0_RELOAD_HIGH 0x4f//  Timer0高位重载值
+  14          #define TIMER0_RELOAD_LOW 0x00   //  Timer0低位重载值
+  15          
+  16          typedef   unsigned   char        uint8;        
+  17          typedef   unsigned   int         uint16;   
+  18          typedef   unsigned   long int    uint32;  
+  19          
+  20          uchar cure_data_flag;//用于18650的数据显示
+  21          uchar cure_data[2][1024];//
+  22          
+  23          int pidflag = 0;
+  24          
+  25          //pid控制
+  26          typedef struct PIDValue 
+  27          { 
+  28          uint32      Ek_Uint32[3];                  
+  29          uint8       EkFlag_Uint8[3];                 
+  30          uint8       KP_Uint8; 
+  31          uint8       KI_Uint8; 
+  32          uint8       KD_Uint8; 
+  33          uint16      Uk_Uint16;                 
+  34          uint16      RK_Uint16;                 
+  35          uint16      CK_Uint16;                
+  36          }PIDValueStr; 
+  37          
+  38          
+  39          PIDValueStr  PID; 
+  40          Queue points;//建立一个队列存储数据
+  41          uint8 out ;                
+  42          uint8 count;
+  43          int lcd_x;
+  44          int temp;
+  45          int temp_uk;
+  46          //参数设定
+  47          int kp = 5;
+  48          int ki = 2;
+  49          int kd = 0;
+  50          int rk = 26;
+  51          int test = 100;
+  52          uint32 Temp_pid[3];                                       
+  53          uint32 PostSum;                                    
+  54          uint32 NegSum;  
+  55          
+C51 COMPILER V9.52.0.0   MAIN                                                              04/26/2024 19:45:11 PAGE 2   
+
+  56          //pid控制函数
+  57          void PIDOperation (void)   
+  58          { 
+  59   1        /*uint32 Temp[3];                                       
+  60   1        uint32 PostSum;                                    
+  61   1        uint32 NegSum; 
+  62   1        Temp[0] = 0; 
+  63   1        Temp[1] = 0; 
+  64   1        Temp[2] = 0; 
+  65   1        PostSum = 0; 
+  66   1        NegSum  = 0; 
+  67   1        PID.KP_Uint8 = kp;
+  68   1        PID.KI_Uint8 = ki;
+  69   1        PID.KD_Uint8 = kd;
+  70   1        PID.RK_Uint16 = rk;*/
+  71   1        PID.KP_Uint8 = kp;
+  72   1        PID.KI_Uint8 = ki;
+  73   1        PID.KD_Uint8 = kd;
+  74   1        PID.RK_Uint16 = rk;
+  75   1        PostSum = 0; 
+  76   1        NegSum  = 0;
+  77   1        Temp_pid[0] = 0; 
+  78   1        Temp_pid[1] = 0; 
+  79   1        Temp_pid[2] = 0; 
+  80   1        if( PID.RK_Uint16 > PID.CK_Uint16 )                   
+  81   1        { 
+  82   2         if( PID.RK_Uint16 - PID.CK_Uint16 >10 )            
+  83   2         { 
+  84   3          PID.Uk_Uint16 = 100;   
+  85   3         }                     
+  86   2         else 
+  87   2        { 
+  88   3        Temp_pid[0] = PID.RK_Uint16 - PID.CK_Uint16;        
+  89   3        PID.EkFlag_Uint8[1]=0;                         
+  90   3        PID.Ek_Uint32[2] = PID.Ek_Uint32[1]; 
+  91   3        PID.Ek_Uint32[1] = PID.Ek_Uint32[0]; 
+  92   3        PID.Ek_Uint32[0] = Temp_pid[0]; 
+  93   3        /****************************************/ 
+  94   3        if( PID.Ek_Uint32[0] >PID.Ek_Uint32[1] )                           
+  95   3        { 
+  96   4        Temp_pid[0]=PID.Ek_Uint32[0] - PID.Ek_Uint32[1];           
+  97   4        PID.EkFlag_Uint8[0]=0;                                       
+  98   4        } 
+  99   3        else 
+ 100   3        { 
+ 101   4        Temp_pid[0]=PID.Ek_Uint32[0] - PID.Ek_Uint32[1];        
+ 102   4         PID.EkFlag_Uint8[0]=1;                                                
+ 103   4        }
+ 104   3        /****************************************/ 
+ 105   3        Temp_pid[2]=PID.Ek_Uint32[1]*2 ;                                             
+ 106   3        if( (PID.Ek_Uint32[0]+ PID.Ek_Uint32[2])>Temp_pid[2] )            
+ 107   3        { 
+ 108   4        Temp_pid[2]=(PID.Ek_Uint32[0]+ PID.Ek_Uint32[2])-Temp_pid[2];     
+ 109   4        PID.EkFlag_Uint8[2]=0;                                           
+ 110   4        } 
+ 111   3        else 
+ 112   3        { 
+ 113   4        Temp_pid[2]=Temp_pid[2]-(PID.Ek_Uint32[0]+ PID.Ek_Uint32[2]);  
+ 114   4        PID.EkFlag_Uint8[2]=1;                                      
+ 115   4        }  
+ 116   3        /****************************************/        
+ 117   3        Temp_pid[0] = (uint32)PID.KP_Uint8 * Temp_pid[0];                        
+C51 COMPILER V9.52.0.0   MAIN                                                              04/26/2024 19:45:11 PAGE 3   
+
+ 118   3        Temp_pid[1] = (uint32)PID.KI_Uint8 * PID.Ek_Uint32[0];             
+ 119   3        Temp_pid[2] = (uint32)PID.KD_Uint8 * Temp_pid[2];                      
+ 120   3        /**********KP*[E(k)-E(k-1)]**********/ 
+ 121   3        if(PID.EkFlag_Uint8[0]==0) 
+ 122   3        PostSum += Temp_pid[0];                                   
+ 123   3        else                                               
+ 124   3        NegSum += Temp_pid[0];                                    
+ 125   3        /********* KI*E(k)****************/  
+ 126   3        if(PID.EkFlag_Uint8[1]==0)       
+ 127   3        PostSum += Temp_pid[1];                                
+ 128   3        else 
+ 129   3        ;                                                 
+ 130   3        /****KD*[E(k-2)+E(k)-2E(k-1)]****/                            
+ 131   3        if(PID.EkFlag_Uint8[2]==0) 
+ 132   3        PostSum += Temp_pid[2];                               
+ 133   3        else 
+ 134   3        NegSum += Temp_pid[2];                             
+ 135   3        /***************U(K)***************/                              
+ 136   3        PostSum += (uint32)PID.Uk_Uint16;     
+ 137   3         
+ 138   3        if(PostSum > NegSum )                         
+ 139   3        { 
+ 140   4            Temp_pid[0] = PostSum - NegSum; 
+ 141   4          if( Temp_pid[0] < 100 )                         
+ 142   4            PID.Uk_Uint16 = Temp_pid[0]; 
+ 143   4          else 
+ 144   4            PID.Uk_Uint16 = 100;                    
+ 145   4        } 
+ 146   3        else                                    
+ 147   3          PID.Uk_Uint16 = 0; 
+ 148   3        } 
+ 149   2        } 
+ 150   1        else  
+ 151   1        { 
+ 152   2          PID.Uk_Uint16 = 0;  
+ 153   2        }  
+ 154   1      } 
+ 155          
+ 156          //dac0初始化
+ 157          void dac0_init(void)
+ 158          {
+ 159   1        DAC0CN = 0x80;//使能dac，dac更新在写dac0h，数据格式为正常数据格式
+ 160   1        REF0CN |= 0x03;//打开ADC，dac偏压发生器，基准电压由vref提供
+ 161   1      }
+ 162          
+ 163          //18650画曲线函数
+ 164          void draw_buffer(uchar *buffer,Queue *Q)
+ 165          {
+ 166   1        uchar num=Q->number,index=Q->rear,count=0,temp;
+ 167   1        while(num--!=0)
+ 168   1        {
+ 169   2          index=(index+129-1)%129;
+ 170   2          temp=(63-Q->base[index])*8+count>>4;
+ 171   2          buffer[(63-Q->base[index])*16+(count>>3)]|=0x80>>(count&0x07);
+ 172   2          ++count;
+ 173   2        }
+ 174   1      }
+ 175          
+ 176          //timer0初始化
+ 177          void Timer0_Init()
+ 178          {
+ 179   1        TH0 = TIMER0_RELOAD_HIGH;           // 设置高8位
+C51 COMPILER V9.52.0.0   MAIN                                                              04/26/2024 19:45:11 PAGE 4   
+
+ 180   1        TL0 = TIMER0_RELOAD_LOW;
+ 181   1        TMOD = 0x01;                        // 设置为16位模式
+ 182   1        ET0 = 1;                            // 使能定时器0
+ 183   1        TR0 = 1;
+ 184   1        pidflag++;
+ 185   1        if (pidflag == 10)
+ 186   1        {
+ 187   2          PIDOperation();//pid控制
+ 188   2          pidflag=0;
+ 189   2        }
+ 190   1      }
+ 191          
+ 192          //timer0溢出中断服务函数
+ 193          void Timer0_ISR (void) interrupt 1
+ 194          {
+ 195   1        TH0 = TIMER0_RELOAD_HIGH;           // 重新装载定时器0
+ 196   1        TL0 = TIMER0_RELOAD_LOW;
+ 197   1        PID.CK_Uint16 = temp;
+ 198   1        PID.CK_Uint16 = PID.CK_Uint16/77;//获取温度数据
+ 199   1        //PIDOperation();
+ 200   1        temp_uk = PID.Uk_Uint16*33;//获得温度控制百分百
+ 201   1        meind_dight(PID.CK_Uint16);//显示
+ 202   1        down_dight(PID.Uk_Uint16);
+ 203   1        up_dight(PID.RK_Uint16);
+ 204   1        //meind_dight(ki);
+ 205   1        //down_dight(kd);
+ 206   1      }
+ 207          
+ 208          //总初始化
+ 209          void Init_Device(void)
+ 210          {
+ 211   1          EA = 0;//关闭总中断
+ 212   1          WDTCN = 0xde;
+ 213   1          WDTCN = 0xad;//关闭看门狗
+ 214   1          EA = 1;//打开总中断
+ 215   1          SYSCLK_Init();//时钟初始化
+ 216   1          XBR2 = 0x40;//使能交差开关
+ 217   1          Port_IO_Init();//端口初始化
+ 218   1          timer3_init();//定时器3初始化
+ 219   1          ADC0_Init ();//adc0初始化
+ 220   1          TIMER4_Init (100);//定时器4初始化
+ 221   1          dac0_init();//dac0初始化
+ 222   1          //LcdInit();
+ 223   1          Timer0_Init();//定时器0初始化
+ 224   1      }
+ 225          
+ 226          //定时器4溢出中断服务函数
+ 227          void TIMER4_ISR (void) interrupt 16
+ 228          {
+ 229   1          T4CON &= ~0x80;// Clear Timer4 overflow flag 
+ 230   1          DAC0L = temp_uk & (0x00ff);//取出低8位
+ 231   1          DAC0H = temp_uk>>8;//取出高8位
+ 232   1      }
+ 233          
+ 234          //adc0中断服务函数
+ 235          void ADC0_ISR () interrupt 15
+ 236          {
+ 237   1          int adc_re = ADC0H;
+ 238   1          AD0INT=0;
+ 239   1          adc_re = (adc_re <<8)|(ADC0L);//获得adc0数据
+ 240   1          //up_dight(adc_re);//显示0通道数据
+ 241   1          //up_dight(kp);
+C51 COMPILER V9.52.0.0   MAIN                                                              04/26/2024 19:45:11 PAGE 5   
+
+ 242   1          temp = adc_re;//存储温度数据
+ 243   1      }
+ 244          
+ 245          void main()
+ 246          {
+ 247   1        Init_Device();//初始化
+ 248   1        PID.Uk_Uint16 = 0;
+ 249   1        PID.Ek_Uint32[2] = 0; 
+ 250   1        PID.Ek_Uint32[1] = 0; 
+ 251   1        PID.Ek_Uint32[0] = 0;
+ 252   1        lcd_x = 0;
+ 253   1        while(1)
+ 254   1        {
+ 255   2          /*PID.CK_Uint16 = temp;
+ 256   2          PID.CK_Uint16 = PID.CK_Uint16/33;
+ 257   2          PIDOperation();
+ 258   2          temp_uk = PID.Uk_Uint16*33;*/
+ 259   2      
+ 260   2          lcd_x ++;
+ 261   2          if(lcd_x == 1000)
+ 262   2          {
+ 263   3            lcd_x = 0;
+ 264   3            EnQueue(&points,PID.CK_Uint16);//入队列0-63
+ 265   3            memset(cure_data[cure_data_flag],0,1024*sizeof(uchar));//刷新缓冲器，全部赋0
+ 266   3            draw_buffer(cure_data[cure_data_flag],&points);//将队列中的点绘制到缓冲区
+ 267   3            ScreenShow(cure_data[cure_data_flag],cure_data[!cure_data_flag],0);//画点，利用2个缓冲区  
+ 268   3            cure_data_flag=!cure_data_flag;//缓冲区互换角色
+ 269   3          }
+ 270   2        }
+ 271   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1926    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   2245      10
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

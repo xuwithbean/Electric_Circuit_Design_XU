@@ -1,0 +1,10 @@
+"main.obj",
+"adc.obj",
+"dight.obj",
+"port.obj",
+"sysclk.obj",
+"time.obj",
+"lcd.obj",
+"queue.obj" 
+TO "123" 
+RAMSIZE(256) 

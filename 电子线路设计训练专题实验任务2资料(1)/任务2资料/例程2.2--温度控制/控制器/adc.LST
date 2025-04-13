@@ -1,0 +1,35 @@
+C51 COMPILER V9.52.0.0   ADC                                                               04/26/2024 19:45:12 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE ADC
+OBJECT MODULE PLACED IN adc.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE adc.c LARGE BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include "adc.h"
+   2          #include "dight.h"
+   3          void ADC0_Init ()
+   4          {
+   5   1          ADC0CN = 0xC4;       // 关闭ADC0; 低能追踪模式
+   6   1          REF0CN = 0x03;        // 打开内部基准电压
+   7   1          AMX0SL=0x00;     // ADC0使用"0"通道
+   8   1          AMX0CF=0x00;
+   9   1          ADC0CF=31<<3;         // ADC转换时钟= 2.5MHz
+  10   1          ADC0CF&=0xf8;          // PGA gain = 1
+  11   1          EIE2|=0x02;        // 打开ADC0中断
+  12   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     21    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

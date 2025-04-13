@@ -1,0 +1,39 @@
+C51 COMPILER V9.52.0.0   PORT                                                              05/18/2022 17:44:22 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE PORT
+OBJECT MODULE PLACED IN port.OBJ
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE port.c BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          /************************************************
+   2          designed by wjj
+   3          wjj12138@stu.xjtu.edu.cn
+   4          ************************************************/
+   5          #include "sysclk.h"
+   6          #include "port.h"
+   7          
+   8          void Port_IO_Init()
+   9          {
+  10   1         XBR0=0xCC;//cp0连到端口，pac0连到端口，cex0连到端口，rx0，tx0连到端口
+  11   1         XBR1=0x13;//int1连到端口，t0连到端口，cp1连到端口，这些功能只是用于交差开关的占位，并不用实际功能
+  12   1         XBR2=0x40;//使能交差开关
+  13   1         P0MDOUT=0xff;//p0端口推挽输出
+  14   1         P74OUT |= 0x01;//将p4低4位设置为推挽输出
+  15   1         P4 &= 0xfd;//将p4.1为0
+  16   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =     19    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,25 @@
+C51 COMPILER V9.52.0.0   TIMER                                                             04/08/2024 21:23:23 PAGE 1   
+
+
+C51 COMPILER V9.52.0.0, COMPILATION OF MODULE TIMER
+OBJECT MODULE PLACED IN Timer.obj
+COMPILER INVOKED BY: d:\Keil\C51\BIN\C51.EXE source\Timer.c LARGE RTX51 BROWSE DEBUG OBJECTEXTEND PRINT(.\Timer.lst) TAB
+                    -S(2) OBJECT(Timer.obj)
+
+line level    source
+
+   1          #include "Timer.h"
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,24 @@
+<html>
+<body>
+<pre>
+<h1>礦ision Build Log</h1>
+<h2>Project:</h2>
+F:\Class\电子线路设计\电子线路设计训练专题实验2实验资料\电子线路设计训练专题实验任务2资料(1)\任务2资料\例程2.1--直升机控制\dzxlsj.uvproj
+Project File Date:  04/08/2024
+
+<h2>Output:</h2>
+Build target 'Target 1'
+compiling main.c...
+source\main.c(104): warning C294: unreachable code
+compiling ADC.c...
+compiling Delay.c...
+compiling SYS_Init.c...
+compiling lcd.c...
+linking...
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_DELAY_MS?DELAY
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_WRITECHAR?LCD
+Program Size: data=9.0 xdata=30 code=1613
+creating hex file from "dzxlsj"...
+"dzxlsj" - 0 Error(s), 3 Warning(s).

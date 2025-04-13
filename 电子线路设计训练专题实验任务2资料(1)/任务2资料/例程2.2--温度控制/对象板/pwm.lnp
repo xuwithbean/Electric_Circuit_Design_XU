@@ -1,0 +1,9 @@
+"main.obj",
+"sysclk.obj",
+"time.obj",
+"port.obj",
+"adc.obj",
+"dight.obj",
+"lcd.obj" 
+TO "pwm" 
+RAMSIZE(256) 
